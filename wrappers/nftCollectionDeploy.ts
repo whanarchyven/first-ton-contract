@@ -27,7 +27,7 @@ export class NftCollectionDeploy implements Contract {
         return beginCell().storeAddress(config.owner_address).storeUint(config.next_item_index, 8).storeRef(config.content).storeRef(config.nft_item_code).storeRef(config.royalty).endCell()
     }
 
-    async mintNFT(provider: ContractProvider, sender: Sender, opts: {
+    async sendMint(provider: ContractProvider, sender: Sender, opts: {
         value: bigint;
         to_address: Address;
         item_owner_address: Address;

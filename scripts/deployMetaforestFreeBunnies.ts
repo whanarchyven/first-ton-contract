@@ -11,29 +11,26 @@ export async function run(provider: NetworkProvider) {
     const content_url_temp = ''
     const content_cell = beginCell()
     let value: any = Buffer.concat([Buffer.from([0x01]), Buffer.from(content_url)])
-    let pieces: Array<Buffer> = []
-    while (value.byteLength > 0) {
-        pieces.push(value.subarray(0, 127))
-        value = value.subarray(127)
-    }
 
-    let cell1=beginCell()
 
-    for(let i=pieces.length-1;i>=0;i--){
-        const piece=pieces[i]
-        cell1.storeBuffer(piece)
-        if(i-1>=0){
-            cell1=beginCell().storeRef(cell1)
-        }
-    }
-    cell1.endCell()
+
+    let cell1=makeMetadata(value)
+
 
     const collection_content=cell1
-    const content1=beginCell().storeBuffer(Buffer.from(content_url_temp))
-    content_cell.storeRef(collection_content).storeRef(content1.endCell())
 
+    const content1=beginCell().storeBuffer(Buffer.from(content_url_temp))
+    content_cell.storeRef(collection_content).storeRef(content1.asCell())
 
     const owner_wallet_address: Address = Address.parse('UQArOJLsRm3YUtbf7qy9P5Cl-2po04yVxZczZqGsROMjBjMH')
+
+    const royalty_base = 1000
+    const royalty_percent = 20
+    const royalty_factor = Math.floor(royalty_percent * royalty_base)
+    const royalty_cell = beginCell().storeUint(royalty_factor, 16).storeUint(royalty_base, 16).storeAddress(owner_wallet_address).endCell()
+
+
+
     const next_item = 0
 
     console.log('ENTERED')
@@ -47,12 +44,6 @@ export async function run(provider: NetworkProvider) {
     const nftItemCodeCell = Cell.fromBase64(base_64_nft_preset)
 
 
-    const royalty_base = 1000
-    const royalty_percent = 20
-
-    const royalty_factor = Math.floor(royalty_percent * royalty_base)
-
-    const royalty_cell = beginCell().storeUint(royalty_factor, 16).storeUint(royalty_base, 16).storeAddress(owner_wallet_address).endCell()
 
     const nft_collection_deployer = provider.open(NftCollectionDeploy.createFromConfig({
         owner_address: owner_wallet_address,
@@ -76,4 +67,29 @@ type nftCollectionContent = { type: 0 | 1, uri: string }
 
 export function nftContentToCell(content: nftCollectionContent) {
     return beginCell().storeUint(content.type, 8).storeStringTail(content.uri).endCell()
+}
+
+export function bufferToPieces(buff:Buffer){
+    let pieces: Array<Buffer> = []
+
+    while (buff.byteLength > 0) {
+        pieces.push(buff.subarray(0, 127))
+        buff = buff.subarray(127)
+    }
+    return pieces
+}
+
+export function makeMetadata(data:Buffer){
+    const pieces=bufferToPieces(data)
+    // return beginCell().storeBuffer(pieces[0]).endCell()
+    let cell1=beginCell()
+    for(let i=pieces.length-1;i>=0;i--){
+        const piece=pieces[i]
+        cell1.storeBuffer(piece)
+        if(i-1>=0){
+            const cell2=beginCell().storeRef(cell1)
+            cell1=cell2
+        }
+    }
+    return cell1.endCell()
 }
